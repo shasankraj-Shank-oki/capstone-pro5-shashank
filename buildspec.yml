@@ -1,8 +1,10 @@
+
 version: 0.2
 
 env:
   variables:
-    GOTOOLCHAIN: auto
+    GO_VERSION: "1.27.3"
+    GOTOOLCHAIN: "local"
     GOFLAGS: "-buildvcs=false"
     HOME: "/tmp/oms-home"
     GOPATH: "/tmp/oms-gopath"
@@ -13,47 +15,103 @@ env:
 phases:
   install:
     commands:
-      - mkdir -p "$HOME" "$GOPATH" "$GOBIN" "$GOCACHE" "$GOMODCACHE"
-      - export PATH="$GOBIN:$PATH"
-      - go version
-      - go install golang.org/x/vuln/cmd/govulncheck@latest
-      - go install github.com/securego/gosec/v2/cmd/gosec@latest
+      - |
+        set -eu
+
+        mkdir -p "$HOME" "$GOPATH" "$GOBIN" "$GOCACHE" "$GOMODCACHE"
+
+        echo "Installing Go ${GO_VERSION}..."
+
+        curl -fsSL \
+          "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
+          -o /tmp/go.tar.gz
+
+        rm -rf /tmp/go
+        tar -C /tmp -xzf /tmp/go.tar.gz
+        rm -f /tmp/go.tar.gz
+
+        export PATH="/tmp/go/bin:$GOBIN:$PATH"
+
+        echo "Using Go version:"
+        go version
+
+        go install golang.org/x/vuln/cmd/govulncheck@latest
+        go install github.com/securego/gosec/v2/cmd/gosec@latest
 
   pre_build:
     commands:
-      - export PATH="$GOBIN:$PATH"
-      - go mod download
       - |
+        set -eu
+        export PATH="/tmp/go/bin:$GOBIN:$PATH"
+
+        echo "Downloading Go dependencies..."
+        go mod download
+
+        echo "Checking Go formatting..."
         FILES=$(find . -type f -name '*.go' -not -path './vendor/*')
+
         if [ -n "$FILES" ]; then
           UNFORMATTED=$(gofmt -l $FILES)
+
           if [ -n "$UNFORMATTED" ]; then
-            echo "ERROR: These Go files need formatting:"
+            echo "ERROR: Go files need formatting:"
             echo "$UNFORMATTED"
             exit 1
           fi
         fi
-      - go vet ./...
+
+        echo "Running go vet..."
+        go vet ./...
 
   build:
     commands:
-      - export PATH="$GOBIN:$PATH"
-      - go test ./...
-      - CGO_ENABLED=1 go test -race ./...
-      - govulncheck ./...
-      - gosec -severity high ./...
-      - mkdir -p bundle/bin
       - |
+        set -eu
+        export PATH="/tmp/go/bin:$GOBIN:$PATH"
+
+        echo "Running unit tests..."
+        go test ./...
+
+        echo "Running race detector..."
+        CGO_ENABLED=1 go test -race ./...
+
+        echo "Scanning Go vulnerabilities..."
+        govulncheck ./...
+
+        echo "Running security analysis..."
+        gosec -severity high ./...
+
+        echo "Preparing deployment bundle..."
+        mkdir -p bundle/bin
+
         for svc in gateway order-service product-service; do
-          echo "Building $svc..."
+          echo "Building ${svc}..."
+
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-            go build -trimpath -ldflags="-s -w" \
-            -o "bundle/bin/$svc" "./cmd/$svc" || exit 1
+            go build \
+              -trimpath \
+              -ldflags="-s -w" \
+              -o "bundle/bin/${svc}" \
+              "./cmd/${svc}"
         done
-      - cp deploy/beanstalk/Procfile bundle/Procfile
-      - cp -r deploy/beanstalk/.ebextensions bundle/.ebextensions
-      - ls -lah bundle
-      - ls -lah bundle/bin
+
+        echo "Copying Elastic Beanstalk configuration..."
+        cp deploy/beanstalk/Procfile bundle/Procfile
+        cp -r deploy/beanstalk/.ebextensions bundle/.ebextensions
+
+        echo "Checking deployment files..."
+        test -x bundle/bin/gateway
+        test -x bundle/bin/order-service
+        test -x bundle/bin/product-service
+        test -f bundle/Procfile
+        test -d bundle/.ebextensions
+
+        ls -lah bundle
+        ls -lah bundle/bin
+
+  post_build:
+    commands:
+      - echo "Build and security checks completed."
 
 artifacts:
   base-directory: bundle
