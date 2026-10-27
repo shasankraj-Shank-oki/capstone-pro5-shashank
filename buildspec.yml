@@ -6,25 +6,30 @@ env:
   variables:
     GOTOOLCHAIN: auto        # fetches the Go version required by go.mod
     GOFLAGS: -buildvcs=false
+    HOME: /tmp/oms-home
+    GOPATH: /tmp/oms-gopath
+    GOBIN: /tmp/oms-gopath/bin
+    GOCACHE: /tmp/oms-gocache
 
 phases:
   install:
     runtime-versions:
       golang: 1.22
     commands:
+      - mkdir -p "$HOME" "$GOPATH" "$GOBIN" "$GOCACHE"
+      - export PATH="$GOBIN:$PATH"
       - go version
       - go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
       - go install github.com/securego/gosec/v2/cmd/gosec@v2.22.8
-      - export PATH="$PATH:$(go env GOPATH)/bin"
   pre_build:
     commands:
-      - export PATH="$PATH:$(go env GOPATH)/bin"
+      - export PATH="$GOBIN:$PATH"
       - go mod download
       - test -z "$(gofmt -l $(find . -name '*.go' -not -path './vendor/*'))"
       - go vet ./...
   build:
     commands:
-      - export PATH="$PATH:$(go env GOPATH)/bin"
+      - export PATH="$GOBIN:$PATH"
       - go test ./...
       - CGO_ENABLED=1 go test -race ./...
       - govulncheck ./...
@@ -42,4 +47,5 @@ artifacts:
 
 cache:
   paths:
-    - /go/pkg/mod/**/*
+    - /tmp/oms-gopath/pkg/mod/**/*
+    - /tmp/oms-gocache/**/*
