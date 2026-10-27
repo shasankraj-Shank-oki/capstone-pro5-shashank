@@ -36,10 +36,9 @@ internal/
     service.go      Order business logic and validation
     repository.go   GORM repository (PostgreSQL)
   product/          Product Service API, GORM repository, and client resilience
-buildspec.yml       AWS CodeBuild: format, vet, tests, race, security scans, build
+buildspec.yml       AWS CodeBuild: format, vet, tests, security scans, build
 deploy/beanstalk/   Elastic Beanstalk bundle files (Procfile, .ebextensions)
 deploy/aws/         CloudWatch agent config (and legacy EC2/systemd files, unused by Beanstalk)
-.github/workflows/  Legacy GitHub Actions CI (optional; CodeBuild is the AWS pipeline)
 ```
 
 Request flow: the order service reads a product price, persists the order, then reserves stock through the Product Service. It marks the order `CONFIRMED` only after the reservation succeeds. If reservation or confirmation fails, it compensates by releasing any possibly-created reservation and removes the failed order (or marks it `CANCELLED` if cleanup cannot complete). Cancelling an order releases its reservation; release operations are idempotent, so an admin can retry cancellation if the Product Service is temporarily unavailable.
