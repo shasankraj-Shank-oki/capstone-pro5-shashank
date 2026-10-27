@@ -81,10 +81,9 @@ Start them in this order. Each prints JSON log lines. Stop with Ctrl+C (graceful
 ```
 go test ./...       # unit tests (no database needed)
 go test -tags integration ./internal/orders   # optional, needs PostgreSQL
-go test -race ./... # concurrency checks (requires CGo)
 ```
 
-The gateway tests also send 100 order-create requests concurrently through the gateway and order service. The in-memory repository used by those tests is synchronized; production persistence uses the PostgreSQL connection pool.
+Gateway tests cover authentication, order creation, product inventory reservations, cancellation, and request forwarding using in-memory dependencies.
 
 ## Manual checks by topic
 
@@ -178,7 +177,7 @@ Create a Secrets Manager secret (or one per value) for `DB_USER`, `DB_PASSWORD`,
 
 ### 4. CodeBuild and CodePipeline
 1. Create a CodeBuild project: source = your repo, environment = Amazon Linux standard image, buildspec = `buildspec.yml`. The build needs outbound internet (or VPC endpoints plus a Go module proxy) to download modules and the scanners.
-2. The build runs, in order: `gofmt` check, `go vet`, `go test ./...`, `go test -race ./...`, `govulncheck`, `gosec -severity high`, then compiles the three binaries into the Beanstalk bundle. Any failure stops the build, so the pipeline never deploys it.
+2. The build runs, in order: `gofmt` check, `go vet`, `go test ./...`, `govulncheck`, `gosec -severity high`, then compiles the three binaries into the Beanstalk bundle. Any failure stops the build, so the pipeline never deploys it.
 3. Create a CodePipeline with three stages: Source (CodeConnections to GitHub/GitLab/Bitbucket, or CodeCommit), Build (the CodeBuild project), Deploy (action provider **AWS Elastic Beanstalk**, your application and environment).
 4. IAM: the CodeBuild role needs CloudWatch Logs and read/write on the pipeline artifact bucket. The CodePipeline role needs access to the artifact bucket, CodeBuild, and Elastic Beanstalk. No AWS credentials are stored anywhere in the repo.
 

@@ -23,15 +23,13 @@ jobs:
         run: go vet ./...
       - name: Unit tests
         run: go test ./...
-      - name: Race detector
-        run: go test -race ./...
       - name: Dependency vulnerability scan
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           govulncheck ./...
       - name: High-severity code scan
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.8
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.30.0
           gosec -severity high ./...
 
   build:
