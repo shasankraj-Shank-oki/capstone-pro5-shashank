@@ -25,12 +25,15 @@ func New(cfg config.Config, logger *slog.Logger) http.Handler {
 	httpClient := &http.Client{
 		Timeout: 28 * time.Second,
 		Transport: &http.Transport{
-			Proxy:                 http.ProxyFromEnvironment,
+			Proxy:                 nil,
 			DialContext:           (&net.Dialer{Timeout: 3 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
 			MaxIdleConns:          100,
 			MaxIdleConnsPerHost:   20,
 			IdleConnTimeout:       90 * time.Second,
 			ResponseHeaderTimeout: 28 * time.Second,
+		},
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
 		},
 	}
 	forwarder := newForwarder(target, httpClient, logger)
@@ -62,7 +65,7 @@ func New(cfg config.Config, logger *slog.Logger) http.Handler {
 			writeJSON(c.Writer, http.StatusServiceUnavailable, `{"status":"NOT_READY"}`)
 			return
 		}
-		resp, err := http.DefaultClient.Do(request)
+		resp, err := httpClient.Do(request)
 		if err != nil {
 			writeJSON(c.Writer, http.StatusServiceUnavailable, `{"status":"NOT_READY"}`)
 			return
@@ -128,6 +131,7 @@ func newForwarder(target *url.URL, client *http.Client, logger *slog.Logger) htt
 		request.ContentLength = r.ContentLength
 		request.Header = r.Header.Clone()
 		removeHopByHopHeaders(request.Header)
+		// #nosec G704 -- destination authority comes from validated service config, not the incoming request; redirects and proxy env are disabled.
 		response, err := client.Do(request)
 		if err != nil {
 			logger.Error("upstream request failed", "request_id", observability.RequestID(r.Context()), "error", err)

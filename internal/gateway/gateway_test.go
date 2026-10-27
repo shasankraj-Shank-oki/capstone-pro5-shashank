@@ -65,6 +65,39 @@ func TestGatewayAuthenticatesAndForwardsOrderRequests(t *testing.T) {
 	}
 }
 
+func TestGatewayDoesNotFollowUpstreamRedirects(t *testing.T) {
+	redirectHits := make(chan struct{}, 1)
+	redirectTarget := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		redirectHits <- struct{}{}
+	}))
+	defer redirectTarget.Close()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, redirectTarget.URL, http.StatusFound)
+	}))
+	defer upstream.Close()
+
+	secret := []byte("0123456789abcdef0123456789abcdef")
+	handler := New(config.Config{
+		OrderServiceURL: upstream.URL,
+		JWTSecret:       secret,
+	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	token, err := auth.IssueToken(secret, "test-user", auth.RoleCustomer, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response := sendGatewayRequest(handler, http.MethodGet, "/api/v1/orders/42", token, "")
+	if response.Code != http.StatusFound {
+		t.Fatalf("gateway status = %d, want %d", response.Code, http.StatusFound)
+	}
+	select {
+	case <-redirectHits:
+		t.Fatal("gateway followed upstream redirect")
+	default:
+	}
+}
+
 func TestGatewayProtectsAndForwardsProductRoutes(t *testing.T) {
 	var calls int
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
