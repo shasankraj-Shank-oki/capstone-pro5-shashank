@@ -1,0 +1,22 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Go build and test outputs
+/bin/
+/bundle/
+/dist/
+/build/
+*.exe
+*.test
+*.out
+*.log
+
+# IDE and operating-system files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

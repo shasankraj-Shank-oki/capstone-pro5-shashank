@@ -1,0 +1,23 @@
+[Unit]
+Description=Order Management Product Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=oms
+Group=oms
+WorkingDirectory=/opt/oms
+EnvironmentFile=/etc/oms/oms.env
+ExecStart=/opt/oms/bin/product-service
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+StandardOutput=append:/var/log/oms/product-service.log
+StandardError=append:/var/log/oms/product-service.log
+
+[Install]
+WantedBy=multi-user.target

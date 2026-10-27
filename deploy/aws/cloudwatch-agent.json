@@ -1,0 +1,47 @@
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/oms/gateway.log",
+            "log_group_name": "/oms/production",
+            "log_stream_name": "{instance_id}/gateway",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/var/log/oms/order-service.log",
+            "log_group_name": "/oms/production",
+            "log_stream_name": "{instance_id}/order-service",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/var/log/oms/product-service.log",
+            "log_group_name": "/oms/production",
+            "log_stream_name": "{instance_id}/product-service",
+            "timezone": "UTC"
+          }
+        ]
+      }
+    }
+  },
+  "metrics": {
+    "namespace": "OMS",
+    "metrics_collected": {
+      "prometheus": {
+        "prometheus_config_path": "/opt/aws/amazon-cloudwatch-agent/etc/prometheus.yml",
+        "emf_processor": {
+          "metric_declaration_dedup": true,
+          "metric_declaration": [
+            {
+              "source_labels": ["job"],
+              "label_matcher": "oms-gateway|oms-order-service",
+              "dimensions": [["job"]],
+              "metric_selectors": ["oms_.*"]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

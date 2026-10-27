@@ -1,0 +1,67 @@
+enum OrderStatus {
+  CREATED
+  CONFIRMED
+  CANCELLED
+}
+
+type Order {
+  id: ID!
+  customerId: ID!
+  productId: ID!
+  quantity: Int!
+  unitPrice: Float!
+  totalAmount: Float!
+  status: OrderStatus!
+  createdAt: String!
+  updatedAt: String!
+}
+
+input CreateOrderInput {
+  customerId: ID!
+  productId: ID!
+  quantity: Int!
+}
+
+type Query {
+  order(id: ID!): Order
+  orders(limit: Int = 50, offset: Int = 0): [Order!]!
+}
+
+type Mutation {
+  createOrder(input: CreateOrderInput!): Order!
+  updateOrderStatus(id: ID!, status: OrderStatus!): Order!
+}
+
+# Copy these operations into a GraphQL client targeting http://localhost:8080/graphql.
+# Add Authorization: Bearer <customer-token> to run queries and createOrder.
+# updateOrderStatus requires Authorization: Bearer <admin-token>.
+#
+# List orders:
+# query {
+#   orders(limit: 10, offset: 0) {
+#     id customerId productId quantity unitPrice totalAmount status createdAt updatedAt
+#   }
+# }
+#
+# Get one order (replace "1" with an ID returned by createOrder):
+# query {
+#   order(id: "1") {
+#     id customerId productId quantity unitPrice totalAmount status createdAt updatedAt
+#   }
+# }
+#
+# Create an order (the GraphQL API is order-only, but this mutation calls the
+# Product Service internally to validate price and reserve stock; its database
+# must be reachable):
+# mutation {
+#   createOrder(input: { customerId: "101", productId: "501", quantity: 2 }) {
+#     id customerId productId quantity unitPrice totalAmount status createdAt updatedAt
+#   }
+# }
+#
+# Update an order (replace "1" with an existing order ID; admin token required):
+# mutation {
+#   updateOrderStatus(id: "1", status: CONFIRMED) {
+#     id status updatedAt
+#   }
+# }

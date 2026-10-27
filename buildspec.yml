@@ -1,0 +1,45 @@
+version: 0.2
+
+# AWS CodeBuild. Any failing command stops the build, so CodePipeline stops
+# before deploy on format, vet, test, race, or security-scan failures.
+env:
+  variables:
+    GOTOOLCHAIN: auto        # fetches the Go version required by go.mod
+    GOFLAGS: -buildvcs=false
+
+phases:
+  install:
+    runtime-versions:
+      golang: 1.22
+    commands:
+      - go version
+      - go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+      - go install github.com/securego/gosec/v2/cmd/gosec@v2.22.8
+      - export PATH="$PATH:$(go env GOPATH)/bin"
+  pre_build:
+    commands:
+      - export PATH="$PATH:$(go env GOPATH)/bin"
+      - go mod download
+      - test -z "$(gofmt -l $(find . -name '*.go' -not -path './vendor/*'))"
+      - go vet ./...
+  build:
+    commands:
+      - export PATH="$PATH:$(go env GOPATH)/bin"
+      - go test ./...
+      - CGO_ENABLED=1 go test -race ./...
+      - govulncheck ./...
+      - gosec -severity high ./...
+      - mkdir -p bundle/bin
+      - for svc in gateway order-service product-service; do CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o bundle/bin/$svc ./cmd/$svc; done
+      - cp deploy/beanstalk/Procfile bundle/Procfile
+      - cp -r deploy/beanstalk/.ebextensions bundle/.ebextensions
+
+artifacts:
+  base-directory: bundle
+  files:
+    - '**/*'
+  discard-paths: no
+
+cache:
+  paths:
+    - /go/pkg/mod/**/*
