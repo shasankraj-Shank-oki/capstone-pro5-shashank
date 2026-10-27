@@ -24,8 +24,8 @@ phases:
         rm -f /tmp/go.tar.gz
         export PATH="/tmp/go/bin:$GOBIN:$PATH"
         go version
-        go install golang.org/x/vuln/cmd/govulncheck@latest
-        go install github.com/securego/gosec/v2/cmd/gosec@latest
+        go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+        go install github.com/securego/gosec/v2/cmd/gosec@v2.30.0
 
   pre_build:
     commands:

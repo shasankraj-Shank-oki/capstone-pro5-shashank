@@ -62,7 +62,7 @@ Request ID (`X-Request-ID`) is created at the gateway and forwarded to the Order
    - `JWT_SECRET`: at least 32 characters (`openssl rand -base64 48`, or any long random string)
 4. Set at least one login password (see Authentication): `AUTH_ADMIN_PASSWORD` and/or `AUTH_USER_PASSWORD` (12+ characters).
 
-Database access uses GORM (`gorm.io/gorm` + `gorm.io/driver/postgres`). Both services apply the shared idempotent schema from `internal/database/schema.sql` while holding a PostgreSQL advisory lock, so simultaneous startup cannot race table/type creation. Pool size comes from `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, `DB_CONN_MAX_LIFETIME`; TLS to PostgreSQL from `DB_SSLMODE` (use `require` for RDS).
+Database access uses GORM (`gorm.io/gorm` + `gorm.io/driver/postgres`). Both services apply the shared idempotent schema from `internal/database/schema.sql` while holding a PostgreSQL advisory lock, serializing schema initialization at startup. Pool size comes from `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`, `DB_CONN_MAX_LIFETIME`; TLS to PostgreSQL from `DB_SSLMODE` (use `require` for RDS).
 
 Never commit `.env` (it is git-ignored).
 

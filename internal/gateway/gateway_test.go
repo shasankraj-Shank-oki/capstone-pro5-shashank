@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
@@ -283,14 +282,11 @@ func sendGatewayRequest(handler http.Handler, method, path, token, body string) 
 }
 
 type memoryOrders struct {
-	mu     sync.Mutex
 	items  map[int64]orders.Order
 	nextID int64
 }
 
 func (r *memoryOrders) Create(_ context.Context, order *orders.Order) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	if r.items == nil {
 		r.items = make(map[int64]orders.Order)
 	}
@@ -303,8 +299,6 @@ func (r *memoryOrders) Create(_ context.Context, order *orders.Order) error {
 }
 
 func (r *memoryOrders) Delete(_ context.Context, id int64) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	if _, ok := r.items[id]; !ok {
 		return orders.ErrNotFound
 	}
@@ -313,8 +307,6 @@ func (r *memoryOrders) Delete(_ context.Context, id int64) error {
 }
 
 func (r *memoryOrders) FindByID(_ context.Context, id int64) (*orders.Order, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	order, ok := r.items[id]
 	if !ok {
 		return nil, orders.ErrNotFound
@@ -323,8 +315,6 @@ func (r *memoryOrders) FindByID(_ context.Context, id int64) (*orders.Order, err
 }
 
 func (r *memoryOrders) List(context.Context, int, int) ([]orders.Order, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	result := make([]orders.Order, 0, len(r.items))
 	for _, order := range r.items {
 		result = append(result, order)
@@ -333,8 +323,6 @@ func (r *memoryOrders) List(context.Context, int, int) ([]orders.Order, error) {
 }
 
 func (r *memoryOrders) UpdateStatus(_ context.Context, id int64, status orders.Status) (*orders.Order, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	order, ok := r.items[id]
 	if !ok {
 		return nil, orders.ErrNotFound
@@ -356,7 +344,6 @@ func (p fixedPrice) Reserve(context.Context, int64, int64, int) error { return n
 func (p fixedPrice) Release(context.Context, int64) error { return nil }
 
 type memoryProducts struct {
-	mu           sync.Mutex
 	items        map[int64]product.Product
 	reservations map[int64]productReservation
 }
@@ -368,8 +355,6 @@ type productReservation struct {
 }
 
 func (r *memoryProducts) Create(_ context.Context, item *product.Product) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	if r.items == nil {
 		r.items = make(map[int64]product.Product)
 	}
@@ -378,8 +363,6 @@ func (r *memoryProducts) Create(_ context.Context, item *product.Product) error 
 }
 
 func (r *memoryProducts) Delete(_ context.Context, id int64) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	if _, ok := r.items[id]; !ok {
 		return product.ErrProductNotFound
 	}
@@ -388,8 +371,6 @@ func (r *memoryProducts) Delete(_ context.Context, id int64) error {
 }
 
 func (r *memoryProducts) Get(_ context.Context, id int64) (*product.Product, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	item, ok := r.items[id]
 	if !ok {
 		return nil, product.ErrProductNotFound
@@ -398,8 +379,6 @@ func (r *memoryProducts) Get(_ context.Context, id int64) (*product.Product, err
 }
 
 func (r *memoryProducts) List(context.Context, int, int) ([]product.Product, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	items := make([]product.Product, 0, len(r.items))
 	for _, item := range r.items {
 		items = append(items, item)
@@ -408,8 +387,6 @@ func (r *memoryProducts) List(context.Context, int, int) ([]product.Product, err
 }
 
 func (r *memoryProducts) Reserve(_ context.Context, orderID, productID, quantity int64) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	item, ok := r.items[productID]
 	if !ok {
 		return product.ErrProductNotFound
@@ -433,8 +410,6 @@ func (r *memoryProducts) Reserve(_ context.Context, orderID, productID, quantity
 }
 
 func (r *memoryProducts) Release(_ context.Context, orderID int64) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	reservation, ok := r.reservations[orderID]
 	if !ok || reservation.released {
 		return nil
@@ -451,8 +426,6 @@ func (r *memoryProducts) Release(_ context.Context, orderID int64) error {
 }
 
 func (r *memoryProducts) stock(id int64) int64 {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	return r.items[id].Stock
 }
 
