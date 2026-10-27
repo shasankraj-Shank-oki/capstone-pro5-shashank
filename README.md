@@ -176,7 +176,7 @@ Create a Secrets Manager secret (or one per value) for `DB_USER`, `DB_PASSWORD`,
 
 ### 4. CodeBuild and CodePipeline
 1. Create a CodeBuild project: source = your repo, environment = Amazon Linux standard image, buildspec = `buildspec.yml`. The build needs outbound internet (or VPC endpoints plus a Go module proxy) to download modules and the scanners.
-2. The build runs, in order: `gofmt` check, `go vet`, `go test ./...`, `govulncheck`, `gosec -severity high`, then compiles the three binaries into the Beanstalk bundle. Any failure stops the build, so the pipeline never deploys it.
+2. The build runs, in order: `gofmt` check, `go vet`, `go test ./...`, `govulncheck` (pinned to v1.9.0), `gosec -severity high` (pinned to v2.30.0), then compiles the three binaries into the Beanstalk bundle. Any failure stops the build, so the pipeline never deploys it.
 3. Create a CodePipeline with three stages: Source (CodeConnections to GitHub/GitLab/Bitbucket, or CodeCommit), Build (the CodeBuild project), Deploy (action provider **AWS Elastic Beanstalk**, your application and environment).
 4. IAM: the CodeBuild role needs CloudWatch Logs and read/write on the pipeline artifact bucket. The CodePipeline role needs access to the artifact bucket, CodeBuild, and Elastic Beanstalk. No AWS credentials are stored anywhere in the repo.
 
