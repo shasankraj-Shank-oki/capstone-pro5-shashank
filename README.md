@@ -79,10 +79,9 @@ Start them in this order. Each prints JSON log lines. Stop with Ctrl+C (graceful
 
 ```
 go test ./...       # unit tests (no database needed)
-go test -tags integration ./internal/orders   # optional, needs PostgreSQL
 ```
 
-Gateway tests cover authentication, order creation, product inventory reservations, cancellation, and request forwarding using in-memory dependencies.
+The test suite includes a small order-status validation check. Review the manual API checks below when verifying service and database integration.
 
 ## Manual checks by topic
 
