@@ -1,4 +1,4 @@
-# Order Management System (Go, no Docker)
+# Order Management System (Go Lang)
 
 Gateway + private services, all run as plain Go processes. HTTP only (no TLS).
 
