@@ -1,32 +1,40 @@
 version: 0.2
 
-# AWS CodeBuild. Any failing command stops the build, so CodePipeline stops
-# before deploy on format, vet, test, race, or security-scan failures.
 env:
   variables:
-    GOTOOLCHAIN: auto        # fetches the Go version required by go.mod
-    GOFLAGS: -buildvcs=false
-    HOME: /tmp/oms-home
-    GOPATH: /tmp/oms-gopath
-    GOBIN: /tmp/oms-gopath/bin
-    GOCACHE: /tmp/oms-gocache
+    GOTOOLCHAIN: auto
+    GOFLAGS: "-buildvcs=false"
+    HOME: "/tmp/oms-home"
+    GOPATH: "/tmp/oms-gopath"
+    GOBIN: "/tmp/oms-gopath/bin"
+    GOCACHE: "/tmp/oms-gocache"
+    GOMODCACHE: "/tmp/oms-gopath/pkg/mod"
 
 phases:
   install:
-    runtime-versions:
-      golang: 1.22
     commands:
-      - mkdir -p "$HOME" "$GOPATH" "$GOBIN" "$GOCACHE"
+      - mkdir -p "$HOME" "$GOPATH" "$GOBIN" "$GOCACHE" "$GOMODCACHE"
       - export PATH="$GOBIN:$PATH"
       - go version
-      - go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-      - go install github.com/securego/gosec/v2/cmd/gosec@v2.22.8
+      - go install golang.org/x/vuln/cmd/govulncheck@latest
+      - go install github.com/securego/gosec/v2/cmd/gosec@latest
+
   pre_build:
     commands:
       - export PATH="$GOBIN:$PATH"
       - go mod download
-      - test -z "$(gofmt -l $(find . -name '*.go' -not -path './vendor/*'))"
+      - |
+        FILES=$(find . -type f -name '*.go' -not -path './vendor/*')
+        if [ -n "$FILES" ]; then
+          UNFORMATTED=$(gofmt -l $FILES)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "ERROR: These Go files need formatting:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+        fi
       - go vet ./...
+
   build:
     commands:
       - export PATH="$GOBIN:$PATH"
@@ -35,9 +43,17 @@ phases:
       - govulncheck ./...
       - gosec -severity high ./...
       - mkdir -p bundle/bin
-      - for svc in gateway order-service product-service; do CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o bundle/bin/$svc ./cmd/$svc; done
+      - |
+        for svc in gateway order-service product-service; do
+          echo "Building $svc..."
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -trimpath -ldflags="-s -w" \
+            -o "bundle/bin/$svc" "./cmd/$svc" || exit 1
+        done
       - cp deploy/beanstalk/Procfile bundle/Procfile
       - cp -r deploy/beanstalk/.ebextensions bundle/.ebextensions
+      - ls -lah bundle
+      - ls -lah bundle/bin
 
 artifacts:
   base-directory: bundle
@@ -47,5 +63,5 @@ artifacts:
 
 cache:
   paths:
-    - /tmp/oms-gopath/pkg/mod/**/*
-    - /tmp/oms-gocache/**/*
+    - '/tmp/oms-gopath/pkg/mod/**/*'
+    - '/tmp/oms-gocache/**/*'
