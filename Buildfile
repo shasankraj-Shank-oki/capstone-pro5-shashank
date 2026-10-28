@@ -1,0 +1,1 @@
+build: mkdir -p bin && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/gateway ./cmd/gateway && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/order-service ./cmd/order-service && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/product-service ./cmd/product-service
